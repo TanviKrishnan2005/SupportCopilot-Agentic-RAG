@@ -16,3 +16,6 @@ data/chroma/
 
 # Streamlit
 .streamlit/
+
+# BM25 generated index
+data/bm25/
