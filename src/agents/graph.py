@@ -1,7 +1,14 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.prebuilt import ToolNode
 from typing import TypedDict
 
 from src.rag.rag_pipeline import answer_question
+
+from src.tools.order_tools import (
+    get_order_status,
+    check_refund_eligibility,
+    create_ticket
+)
 
 
 # --------------------------------------------------
@@ -33,12 +40,26 @@ def rag_node(state: AgentState):
 
 
 # --------------------------------------------------
+# Tools
+# --------------------------------------------------
+
+tools = [
+    get_order_status,
+    check_refund_eligibility,
+    create_ticket
+]
+
+tool_node = ToolNode(tools)
+
+
+# --------------------------------------------------
 # Build Graph
 # --------------------------------------------------
 
 graph_builder = StateGraph(AgentState)
 
 graph_builder.add_node("rag", rag_node)
+graph_builder.add_node("tools", tool_node)
 
 graph_builder.add_edge(START, "rag")
 graph_builder.add_edge("rag", END)

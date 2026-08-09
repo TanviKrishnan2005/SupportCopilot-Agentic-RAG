@@ -2,6 +2,8 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 
+from langchain_core.tools import tool
+
 
 # --------------------------------------------------
 # Database Path
@@ -16,7 +18,9 @@ DATABASE_PATH = PROJECT_ROOT / "data" / "database" / "orders.db"
 # Get Order Status
 # --------------------------------------------------
 
+@tool
 def get_order_status(order_id: str):
+    """Get the current status and details of an order."""
 
     connection = sqlite3.connect(DATABASE_PATH)
     cursor = connection.cursor()
@@ -66,7 +70,9 @@ def get_order_status(order_id: str):
 # Check Refund Eligibility
 # --------------------------------------------------
 
+@tool
 def check_refund_eligibility(order_id: str):
+    """Check whether an order is eligible for a refund."""
 
     connection = sqlite3.connect(DATABASE_PATH)
     cursor = connection.cursor()
@@ -131,11 +137,15 @@ def check_refund_eligibility(order_id: str):
         "days_since_delivery": days_since_delivery,
         "message": "Order is outside the 30-day return window."
     }
+
+
 # --------------------------------------------------
 # Create Support Ticket
 # --------------------------------------------------
 
+@tool
 def create_ticket(order_id: str, issue: str):
+    """Create a support ticket for an order."""
 
     connection = sqlite3.connect(DATABASE_PATH)
     cursor = connection.cursor()
@@ -200,12 +210,15 @@ if __name__ == "__main__":
     order_id = input("Enter Order ID: ").strip()
 
     print("\nOrder Status:")
-    print(get_order_status(order_id))
+    print(get_order_status.invoke(order_id))
 
     print("\nRefund Eligibility:")
-    print(check_refund_eligibility(order_id))
+    print(check_refund_eligibility.invoke(order_id))
 
     issue = input("\nEnter support issue: ").strip()
 
     print("\nCreate Ticket:")
-    print(create_ticket(order_id, issue))
+    print(create_ticket.invoke({
+        "order_id": order_id,
+        "issue": issue
+    }))
