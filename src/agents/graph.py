@@ -1,6 +1,8 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict
 
+from src.rag.rag_pipeline import answer_question
+
 
 # --------------------------------------------------
 # Agent State
@@ -15,15 +17,18 @@ class AgentState(TypedDict):
 
 
 # --------------------------------------------------
-# Agent Node
+# RAG Node
 # --------------------------------------------------
 
-def agent_node(state: AgentState):
+def rag_node(state: AgentState):
 
-    message = state["message"]
+    question = state["message"]
+
+    answer, results = answer_question(question)
 
     return {
-        "response": f"Agent received: {message}"
+        "response": answer,
+        "context": results
     }
 
 
@@ -33,10 +38,10 @@ def agent_node(state: AgentState):
 
 graph_builder = StateGraph(AgentState)
 
-graph_builder.add_node("agent", agent_node)
+graph_builder.add_node("rag", rag_node)
 
-graph_builder.add_edge(START, "agent")
-graph_builder.add_edge("agent", END)
+graph_builder.add_edge(START, "rag")
+graph_builder.add_edge("rag", END)
 
 graph = graph_builder.compile()
 
@@ -48,12 +53,20 @@ graph = graph_builder.compile()
 if __name__ == "__main__":
 
     result = graph.invoke({
-        "message": "Where is my order ORD1005?",
+        "message": "How long does delivery take?",
         "response": "",
         "intent": "",
         "tool_result": {},
         "context": []
     })
 
-    print("\nAgent State:")
-    print(result)
+    print("\nAgent Response:")
+    print(result["response"])
+
+    print("\nRetrieved Context:")
+
+    for item in result["context"]:
+        print(
+            f"- {item['source']} "
+            f"({item['method']})"
+        )

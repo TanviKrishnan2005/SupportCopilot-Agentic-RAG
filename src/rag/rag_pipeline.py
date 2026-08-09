@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 
-from hybrid_retriever import hybrid_search
+from src.rag.hybrid_retriever import hybrid_search
 
 
 # --------------------------------------------------
