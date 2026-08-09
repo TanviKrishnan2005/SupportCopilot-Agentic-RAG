@@ -216,11 +216,10 @@ graph = graph_builder.compile()
 if __name__ == "__main__":
 
     questions = [
-        "How long does delivery take?",
-        "Where is my order ORD1005?",
-        "Can I get a refund for ORD1005?",
-        "My package ORD1005 arrived damaged, create a complaint"
-    ]
+    "What is NovaCart's favorite color?",
+    "Do you sell cars?",
+    "Who is the CEO of NovaCart?"
+]
 
     for question in questions:
 
