@@ -131,6 +131,64 @@ def check_refund_eligibility(order_id: str):
         "days_since_delivery": days_since_delivery,
         "message": "Order is outside the 30-day return window."
     }
+# --------------------------------------------------
+# Create Support Ticket
+# --------------------------------------------------
+
+def create_ticket(order_id: str, issue: str):
+
+    connection = sqlite3.connect(DATABASE_PATH)
+    cursor = connection.cursor()
+
+    # Check whether the order exists
+    cursor.execute(
+        "SELECT order_id FROM orders WHERE order_id = ?",
+        (order_id,)
+    )
+
+    order = cursor.fetchone()
+
+    if order is None:
+        connection.close()
+
+        return {
+            "success": False,
+            "message": f"No order found with ID {order_id}."
+        }
+
+    # Get the next ticket number
+    cursor.execute(
+        "SELECT COUNT(*) FROM support_tickets"
+    )
+
+    ticket_count = cursor.fetchone()[0]
+
+    ticket_id = f"T{1001 + ticket_count}"
+
+    # Create ticket
+    cursor.execute("""
+        INSERT INTO support_tickets
+        (ticket_id, order_id, issue, status, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        ticket_id,
+        order_id,
+        issue,
+        "Open",
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ))
+
+    connection.commit()
+    connection.close()
+
+    return {
+        "success": True,
+        "ticket_id": ticket_id,
+        "order_id": order_id,
+        "issue": issue,
+        "status": "Open",
+        "message": "Support ticket created successfully."
+    }
 
 
 # --------------------------------------------------
@@ -146,3 +204,8 @@ if __name__ == "__main__":
 
     print("\nRefund Eligibility:")
     print(check_refund_eligibility(order_id))
+
+    issue = input("\nEnter support issue: ").strip()
+
+    print("\nCreate Ticket:")
+    print(create_ticket(order_id, issue))
