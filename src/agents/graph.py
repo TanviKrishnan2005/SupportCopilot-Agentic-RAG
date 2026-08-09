@@ -2,8 +2,7 @@ from langgraph.graph import StateGraph, START, END
 from typing import TypedDict
 import re
 
-from src.rag.rag_pipeline import answer_question
-from src.rag.rag_pipeline import llm
+from src.rag.rag_pipeline import answer_question, llm
 
 from src.tools.order_tools import (
     get_order_status,
@@ -30,8 +29,15 @@ class AgentState(TypedDict):
 
 def route_question(state: AgentState):
 
-    question = state["message"].lower()
+    question = state["message"].strip().lower()
 
+    # Empty question
+    if not question:
+        return {
+            "intent": "fallback"
+        }
+
+    # Order status
     if "order" in question and (
         "where" in question
         or "status" in question
@@ -41,16 +47,19 @@ def route_question(state: AgentState):
             "intent": "order_status"
         }
 
+    # Refund
     if "refund" in question:
         return {
             "intent": "refund"
         }
 
+    # Support ticket
     if "ticket" in question or "complaint" in question:
         return {
             "intent": "ticket"
         }
 
+    # Everything else goes to RAG
     return {
         "intent": "rag"
     }
@@ -69,6 +78,83 @@ def rag_node(state: AgentState):
     return {
         "response": answer,
         "context": results
+    }
+
+
+# --------------------------------------------------
+# Fallback Node
+# --------------------------------------------------
+
+def fallback_node(state: AgentState):
+
+    return {
+        "response": "Please enter a question so I can help you."
+    }
+
+
+# --------------------------------------------------
+# Tool Node
+# --------------------------------------------------
+
+def tool_node(state: AgentState):
+
+    question = state["message"]
+    intent = state["intent"]
+
+    # Find order ID
+    match = re.search(r"ORD\d+", question.upper())
+
+    if match is None:
+
+        result = {
+            "success": False,
+            "message": "Please provide a valid order ID."
+        }
+
+        return {
+            "tool_result": result,
+            "response": result["message"]
+        }
+
+    order_id = match.group()
+
+    try:
+
+        # Order status
+        if intent == "order_status":
+
+            result = get_order_status.invoke(order_id)
+
+        # Refund
+        elif intent == "refund":
+
+            result = check_refund_eligibility.invoke(order_id)
+
+        # Create support ticket
+        elif intent == "ticket":
+
+            result = create_ticket.invoke({
+                "order_id": order_id,
+                "issue": question
+            })
+
+        else:
+
+            result = {
+                "success": False,
+                "message": "I could not determine which support tool to use."
+            }
+
+    except Exception:
+
+        result = {
+            "success": False,
+            "message": "Something went wrong while processing your request."
+        }
+
+    return {
+        "tool_result": result,
+        "response": str(result)
     }
 
 # --------------------------------------------------
@@ -102,70 +188,6 @@ Do not invent information.
         "response": response.content
     }
 
-# --------------------------------------------------
-# Tool Node
-# --------------------------------------------------
-
-def tool_node(state: AgentState):
-
-    question = state["message"]
-    intent = state["intent"]
-
-    # Find order ID
-    match = re.search(r"ORD\d+", question.upper())
-
-    if match is None:
-
-        result = {
-            "success": False,
-            "message": "Please provide a valid order ID."
-        }
-
-        return {
-            "tool_result": result,
-            "response": result["message"]
-        }
-
-    order_id = match.group()
-
-    # Order status
-    if intent == "order_status":
-
-        result = get_order_status.invoke(order_id)
-
-        return {
-            "tool_result": result,
-            "response": str(result)
-        }
-
-    # Refund
-    if intent == "refund":
-
-        result = check_refund_eligibility.invoke(order_id)
-
-        return {
-            "tool_result": result,
-            "response": str(result)
-        }
-
-    # Create support ticket
-    if intent == "ticket":
-
-        result = create_ticket.invoke({
-            "order_id": order_id,
-            "issue": question
-        })
-
-        return {
-            "tool_result": result,
-            "response": str(result)
-        }
-
-    return {
-        "tool_result": {},
-        "response": "I could not determine which support tool to use."
-    }
-
 
 # --------------------------------------------------
 # Choose Next Node
@@ -175,6 +197,9 @@ def choose_next_node(state: AgentState):
 
     if state["intent"] == "rag":
         return "rag"
+
+    if state["intent"] == "fallback":
+        return "fallback"
 
     return "tools"
 
@@ -188,6 +213,8 @@ graph_builder = StateGraph(AgentState)
 graph_builder.add_node("router", route_question)
 graph_builder.add_node("rag", rag_node)
 graph_builder.add_node("tools", tool_node)
+graph_builder.add_node("response", generate_response)
+graph_builder.add_node("fallback", fallback_node)
 
 graph_builder.add_edge(START, "router")
 
@@ -196,15 +223,17 @@ graph_builder.add_conditional_edges(
     choose_next_node,
     {
         "rag": "rag",
-        "tools": "tools"
+        "tools": "tools",
+        "fallback": "fallback"
     }
 )
 
 graph_builder.add_edge("rag", END)
 
-graph_builder.add_node("response", generate_response)
 graph_builder.add_edge("tools", "response")
 graph_builder.add_edge("response", END)
+
+graph_builder.add_edge("fallback", END)
 
 graph = graph_builder.compile()
 
@@ -215,23 +244,19 @@ graph = graph_builder.compile()
 
 if __name__ == "__main__":
 
-    questions = [
-    "What is NovaCart's favorite color?",
-    "Do you sell cars?",
-    "Who is the CEO of NovaCart?"
-]
+    question = input("\nAsk NovaCart a question: ")
 
-    for question in questions:
+    result = graph.invoke({
+        "message": question,
+        "response": "",
+        "intent": "",
+        "tool_result": {},
+        "context": []
+    })
 
-        result = graph.invoke({
-            "message": question,
-            "response": "",
-            "intent": "",
-            "tool_result": {},
-            "context": []
-        })
+    print("\n" + "=" * 60)
+    print("NOVACART SUPPORT")
+    print("=" * 60)
 
-        print("\n" + "=" * 60)
-        print("Question:", question)
-        print("Intent:", result["intent"])
-        print("Response:", result["response"])
+    print("\nIntent:", result["intent"])
+    print("\nResponse:", result["response"])
