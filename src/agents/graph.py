@@ -3,6 +3,7 @@ from typing import TypedDict
 import re
 
 from src.rag.rag_pipeline import answer_question
+from src.rag.rag_pipeline import llm
 
 from src.tools.order_tools import (
     get_order_status,
@@ -70,6 +71,36 @@ def rag_node(state: AgentState):
         "context": results
     }
 
+# --------------------------------------------------
+# Generate Final Response
+# --------------------------------------------------
+
+def generate_response(state: AgentState):
+
+    result = state["tool_result"]
+    question = state["message"]
+
+    prompt = f"""
+You are NovaCart's customer support assistant.
+
+Answer the customer using the information provided below.
+
+Customer question:
+{question}
+
+Support information:
+{result}
+
+Give a short, clear and helpful response.
+
+Do not invent information.
+"""
+
+    response = llm.invoke(prompt)
+
+    return {
+        "response": response.content
+    }
 
 # --------------------------------------------------
 # Tool Node
@@ -170,7 +201,10 @@ graph_builder.add_conditional_edges(
 )
 
 graph_builder.add_edge("rag", END)
-graph_builder.add_edge("tools", END)
+
+graph_builder.add_node("response", generate_response)
+graph_builder.add_edge("tools", "response")
+graph_builder.add_edge("response", END)
 
 graph = graph_builder.compile()
 
