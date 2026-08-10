@@ -1,0 +1,91 @@
+[
+    {
+        "question": "How long does delivery take?",
+        "expected_intent": "rag",
+        "expected_source": "shipping.md",
+        "expected_keywords": ["business days"]
+    },
+    {
+        "question": "Can I return a damaged product after 20 days?",
+        "expected_intent": "rag",
+        "expected_source": "returns.md",
+        "expected_keywords": ["return"]
+    },
+    {
+        "question": "What payment methods are accepted?",
+        "expected_intent": "rag",
+        "expected_source": "payments.md",
+        "expected_keywords": ["credit", "debit", "UPI"]
+    },
+    {
+        "question": "Where is my order ORD1005?",
+        "expected_intent": "order_status",
+        "expected_tool": "get_order_status",
+        "expected_keywords": ["ORD1005", "shipped"]
+    },
+    {
+        "question": "What is the status of order ORD1005?",
+        "expected_intent": "order_status",
+        "expected_tool": "get_order_status",
+        "expected_keywords": ["ORD1005", "shipped"]
+    },
+    {
+        "question": "Can I get a refund for ORD1005?",
+        "expected_intent": "refund",
+        "expected_tool": "check_refund_eligibility",
+        "expected_keywords": ["not eligible", "delivered"]
+    },
+    {
+        "question": "Is ORD1005 eligible for a refund?",
+        "expected_intent": "refund",
+        "expected_tool": "check_refund_eligibility",
+        "expected_keywords": ["not eligible", "delivered"]
+    },
+    {
+        "question": "My package ORD1005 arrived damaged, create a complaint",
+        "expected_intent": "ticket",
+        "expected_tool": "create_ticket",
+        "expected_keywords": ["ticket", "T"]
+    },
+    {
+        "question": "I want to report an issue with ORD1005",
+        "expected_intent": "ticket",
+        "expected_tool": "create_ticket",
+        "expected_keywords": ["ticket", "T"]
+    },
+    {
+        "question": "Where is my order?",
+        "expected_intent": "order_status",
+        "expected_keywords": ["order ID"]
+    },
+    {
+        "question": "Can I get a refund?",
+        "expected_intent": "refund",
+        "expected_keywords": ["order ID"]
+    },
+    {
+        "question": "My package is damaged, create a complaint",
+        "expected_intent": "ticket",
+        "expected_keywords": ["order ID"]
+    },
+    {
+        "question": "",
+        "expected_intent": "fallback",
+        "expected_keywords": ["enter a question"]
+    },
+    {
+        "question": "   ",
+        "expected_intent": "fallback",
+        "expected_keywords": ["enter a question"]
+    },
+    {
+        "question": "Who is the CEO of NovaCart?",
+        "expected_intent": "rag",
+        "expected_keywords": ["not enough information"]
+    },
+    {
+        "question": "Do you sell cars?",
+        "expected_intent": "rag",
+        "expected_keywords": ["not enough information"]
+    }
+]

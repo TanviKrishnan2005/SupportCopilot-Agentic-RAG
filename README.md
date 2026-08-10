@@ -1,53 +1,272 @@
 # SupportCopilot
 
-SupportCopilot is an AI-powered customer support assistant for NovaCart.
+AI-powered customer support agent for NovaCart.
 
-It can answer questions from company policies, check order details, check refund eligibility, and create support tickets.
+SupportCopilot combines RAG, hybrid retrieval, LangGraph-based
+agent orchestration, and database-backed support tools to answer
+customer questions and perform support actions.
 
-## What it can do
+---
 
-- Answer customer questions using NovaCart policies
-- Search documents using hybrid retrieval
-- Check order status
-- Check refund eligibility
-- Create support tickets
-- Route questions to the correct tool
-- Handle missing or invalid order IDs
-- Give natural language responses using an LLM
-- Avoid making up information when the answer is not in the knowledge base
+## Features
 
-## How it works
+- Policy-based question answering using RAG
+- Semantic + keyword/hybrid retrieval
+- LangGraph agent workflow
+- Intent-based request routing
+- Order status lookup
+- Refund eligibility checking
+- Support ticket creation
+- Unknown-information handling
+- Hallucination prevention
+- Edge-case handling
+- Automated evaluation framework
 
-The project uses a simple agent workflow:
+---
 
-Customer Question  
-↓  
-Router  
-↓  
-RAG / Order Tool / Refund Tool / Ticket Tool  
-↓  
-LLM Response  
-↓  
-Customer
+## Architecture
 
-For policy-related questions, the system uses hybrid search with semantic search and BM25.
+```text
+                         User Question
+                              |
+                              v
+                       +--------------+
+                       |    Router    |
+                       +--------------+
+                              |
+              +---------------+---------------+
+              |               |               |
+              v               v               v
+             RAG          Order Tools      Fallback
+              |               |
+              v               v
+       Hybrid Retrieval   SQLite Database
+              |               |
+              v               v
+         Policy Docs      Order / Ticket
+              |
+              v
+        Final Response
+````
 
-For order-related questions, it uses a SQLite database.
+---
 
-LangGraph is used to manage the agent workflow.
+## Agent Workflow
 
-## Tech Stack
+The LangGraph agent classifies incoming requests into different
+support intents.
 
-- Python
-- LangGraph
-- LangChain
-- Groq
-- Llama 3.3 70B
-- Sentence Transformers
-- ChromaDB
-- BM25
-- SQLite
-- Python-dotenv
+### Supported intents
+
+* `rag`
+* `order_status`
+* `refund`
+* `ticket`
+* `fallback`
+
+### Tool routing
+
+| Intent         | Tool                       |
+| -------------- | -------------------------- |
+| `order_status` | `get_order_status`         |
+| `refund`       | `check_refund_eligibility` |
+| `ticket`       | `create_ticket`            |
+
+---
+
+## RAG Pipeline
+
+The RAG system retrieves relevant NovaCart policy information before
+generating an answer.
+
+The retrieval pipeline uses:
+
+* Semantic search
+* BM25 / keyword search
+* Hybrid retrieval
+* Top-k relevant chunks
+* LLM-based answer generation
+
+The model is instructed to answer using only the retrieved
+NovaCart policy information.
+
+If the information is unavailable, the assistant explicitly states
+that it does not have enough information instead of inventing an answer.
+
+---
+
+## Order Support Tools
+
+SupportCopilot connects to a SQLite database containing NovaCart
+order information.
+
+### Order Status
+
+Users can ask questions such as:
+
+```text
+Where is my order ORD1005?
+```
+
+The system retrieves:
+
+* Customer
+* Product
+* Order date
+* Delivery date
+* Order status
+* Payment status
+* Amount
+
+### Refund Eligibility
+
+The system checks:
+
+* Whether the order exists
+* Whether the order has been delivered
+* Whether it is within the 30-day return window
+
+### Support Tickets
+
+Customers can report issues such as damaged packages.
+
+The system creates a support ticket containing:
+
+* Ticket ID
+* Order ID
+* Issue
+* Status
+* Creation timestamp
+
+---
+
+## Example
+
+### Policy Question
+
+```text
+User:
+How long does delivery take?
+```
+
+```text
+SupportCopilot:
+Metro Cities: 2–4 business days
+Tier-2 Cities: 3–5 business days
+Remote Areas: 5–7 business days
+```
+
+---
+
+### Order Question
+
+```text
+User:
+Where is my order ORD1005?
+```
+
+```text
+SupportCopilot:
+Your order ORD1005 has been shipped.
+```
+
+---
+
+### Refund Question
+
+```text
+User:
+Can I get a refund for ORD1005?
+```
+
+```text
+SupportCopilot:
+The order is not currently eligible for a refund because it
+has not been delivered yet.
+```
+
+---
+
+### Support Ticket
+
+```text
+User:
+My package ORD1005 arrived damaged, create a complaint.
+```
+
+```text
+SupportCopilot:
+A support ticket has been created.
+```
+
+---
+
+## Evaluation
+
+SupportCopilot includes an automated evaluation framework covering
+multiple aspects of agent performance.
+
+### Evaluation Results
+
+| Metric               | Result |
+| -------------------- | -----: |
+| Intent Routing       |   100% |
+| Tool Selection       |   100% |
+| RAG Retrieval        |   100% |
+| Answer Quality       |  87.5% |
+| Hallucination Safety |   100% |
+| Edge-Case Handling   |    90% |
+| Overall Evaluation   |  87.5% |
+
+### Evaluation Categories
+
+#### Intent Routing
+
+Tests whether questions are correctly classified into:
+
+* RAG
+* Order status
+* Refund
+* Ticket
+* Fallback
+
+#### Tool Selection
+
+Tests whether the correct backend tool is selected for each
+action-oriented request.
+
+#### RAG Retrieval
+
+Tests whether the relevant policy document is retrieved for
+policy-based questions.
+
+#### Answer Quality
+
+Checks whether generated responses contain the expected information
+without requiring exact wording.
+
+#### Hallucination Safety
+
+Tests questions for which the knowledge base does not contain an
+answer.
+
+The assistant is expected to acknowledge insufficient information
+rather than fabricate an answer.
+
+#### Edge Cases
+
+Tests include:
+
+* Empty questions
+* Whitespace-only input
+* Missing order IDs
+* Invalid order IDs
+* Unknown orders
+* Unknown refund requests
+* Unknown ticket requests
+* Random input
+
+---
 
 ## Project Structure
 
@@ -56,48 +275,37 @@ SupportCopilot/
 │
 ├── data/
 │   ├── database/
-│   └── policies/
+│   │   └── orders.db
+│   ├── documents/
+│   ├── chroma/
+│   └── bm25/
 │
 ├── evaluation/
+│   ├── test_cases.json
+│   ├── hallucination_tests.json
+│   ├── edge_case_tests.json
+│   ├── evaluate_agent.py
+│   ├── evaluate_hallucination.py
+│   ├── evaluate_edge_cases.py
+│   └── evaluation_report.md
 │
 ├── src/
 │   ├── agents/
-│   ├── database/
-│   ├── ingestion/
+│   │   └── graph.py
+│   │
 │   ├── rag/
-│   ├── tools/
-│   └── utils/
+│   │   ├── rag_pipeline.py
+│   │   └── hybrid_retriever.py
+│   │
+│   └── tools/
+│       └── order_tools.py
 │
-├── tests/
-│
-├── .env
 ├── .gitignore
-├── requirements.txt
-└── README.md
-````
-
-## Example Questions
-
-### Policy questions
-
-```text
-How long does delivery take?
-Can I return a damaged product after 20 days?
-What payment methods are accepted?
+├── README.md
+└── requirements.txt
 ```
 
-### Order questions
-
-```text
-Where is my order ORD1005?
-Can I get a refund for ORD1005?
-```
-
-### Support questions
-
-```text
-My package ORD1005 arrived damaged, create a complaint
-```
+---
 
 ## Running the Project
 
@@ -109,17 +317,17 @@ python -m venv .venv
 
 Activate it on Windows:
 
-```bash
+```powershell
 .venv\Scripts\activate
 ```
 
-Install the dependencies:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Create a `.env` file and add:
+Create a `.env` file containing:
 
 ```text
 GROQ_API_KEY=your_api_key
@@ -131,31 +339,76 @@ Run the agent:
 python -m src.agents.graph
 ```
 
-Then enter a customer question.
+---
 
-## Example
+## Running Evaluations
 
-```text
-Ask NovaCart a question: Where is my order ORD1005?
+### Main evaluation
 
-Intent: order_status
-
-Response:
-Your order ORD1005 has been shipped. However, we don't have a confirmed delivery date yet.
+```bash
+python -m evaluation.evaluate_agent
 ```
 
-## Current Status
+### Hallucination evaluation
 
-The core agent is working with:
+```bash
+python -m evaluation.evaluate_hallucination
+```
 
-* Hybrid RAG
-* Order lookup
-* Refund checking
-* Support ticket creation
+### Edge-case evaluation
+
+```bash
+python -m evaluation.evaluate_edge_cases
+```
+
+---
+
+## Technologies
+
+* Python
+* LangGraph
+* LangChain
+* Groq / Llama
+* RAG
+* BM25
+* Vector Search
+* SQLite
+* ChromaDB
+* Sentence Transformers
+
+---
+
+## Key Learning Outcomes
+
+This project demonstrates practical implementation of:
+
+* Retrieval-Augmented Generation
+* Hybrid information retrieval
+* Agentic workflows
 * Intent routing
-* Natural language responses
-* Error and fallback handling
+* Tool calling
+* Database integration
+* LLM response generation
+* Hallucination prevention
+* Automated agent evaluation
+* Edge-case testing
+
+---
+
+## Future Improvements
+
+Potential future improvements include:
+
+* LLM-based intent classification
+* More sophisticated tool selection
+* Conversation memory
+* Streaming responses
+* Better evaluation metrics
+* Larger evaluation datasets
+* Authentication
+* Customer-facing web interface
+* Observability and tracing
+
+````
 
 
-```
-```

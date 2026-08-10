@@ -1,0 +1,75 @@
+[
+    {
+        "question": "",
+        "expected_intent": "fallback",
+        "expected_keywords": [
+            "enter a question"
+        ]
+    },
+    {
+        "question": "   ",
+        "expected_intent": "fallback",
+        "expected_keywords": [
+            "enter a question"
+        ]
+    },
+    {
+        "question": "Where is my order?",
+        "expected_intent": "order_status",
+        "expected_keywords": [
+            "order ID"
+        ]
+    },
+    {
+        "question": "Can I get a refund?",
+        "expected_intent": "refund",
+        "expected_keywords": [
+            "order ID"
+        ]
+    },
+    {
+        "question": "My package is damaged, create a complaint",
+        "expected_intent": "ticket",
+        "expected_keywords": [
+            "order ID"
+        ]
+    },
+    {
+        "question": "Where is my order ORD9999?",
+        "expected_intent": "order_status",
+        "expected_keywords": [
+            "no order found",
+            "couldn't find any order",
+            "no order was found"
+        ]
+    },
+    {
+        "question": "Can I get a refund for ORD9999?",
+        "expected_intent": "refund",
+        "expected_keywords": [
+            "no order found",
+            "couldn't find any order",
+            "no order was found"
+        ]
+    },
+    {
+        "question": "My package ORD9999 arrived damaged, create a complaint",
+        "expected_intent": "ticket",
+        "expected_keywords": [
+            "no order found",
+            "couldn't find any order",
+            "no order was found"
+        ]
+    },
+    {
+        "question": "Where is my order INVALID123?",
+        "expected_intent": "order_status",
+        "expected_keywords": [
+            "order ID"
+        ]
+    },
+    {
+        "question": "asdfghjkl",
+        "expected_intent": "rag"
+    }
+]

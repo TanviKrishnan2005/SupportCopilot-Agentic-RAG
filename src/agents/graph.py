@@ -20,6 +20,7 @@ class AgentState(TypedDict):
     response: str
     intent: str
     tool_result: dict
+    tool_used: str
     context: list
 
 
@@ -54,7 +55,11 @@ def route_question(state: AgentState):
         }
 
     # Support ticket
-    if "ticket" in question or "complaint" in question:
+    if (
+        "ticket" in question
+        or "complaint" in question
+        or "report an issue" in question
+    ):
         return {
             "intent": "ticket"
         }
@@ -113,6 +118,7 @@ def tool_node(state: AgentState):
 
         return {
             "tool_result": result,
+            "tool_used": "",
             "response": result["message"]
         }
 
@@ -125,25 +131,42 @@ def tool_node(state: AgentState):
 
             result = get_order_status.invoke(order_id)
 
+            return {
+                "tool_result": result,
+                "tool_used": "get_order_status",
+                "response": str(result)
+            }
+
         # Refund
-        elif intent == "refund":
+        if intent == "refund":
 
             result = check_refund_eligibility.invoke(order_id)
 
+            return {
+                "tool_result": result,
+                "tool_used": "check_refund_eligibility",
+                "response": str(result)
+            }
+
         # Create support ticket
-        elif intent == "ticket":
+        if intent == "ticket":
 
             result = create_ticket.invoke({
                 "order_id": order_id,
                 "issue": question
             })
 
-        else:
-
-            result = {
-                "success": False,
-                "message": "I could not determine which support tool to use."
+            return {
+                "tool_result": result,
+                "tool_used": "create_ticket",
+                "response": str(result)
             }
+
+        return {
+            "tool_result": {},
+            "tool_used": "",
+            "response": "I could not determine which support tool to use."
+        }
 
     except Exception:
 
@@ -152,10 +175,12 @@ def tool_node(state: AgentState):
             "message": "Something went wrong while processing your request."
         }
 
-    return {
-        "tool_result": result,
-        "response": str(result)
-    }
+        return {
+            "tool_result": result,
+            "tool_used": "",
+            "response": result["message"]
+        }
+
 
 # --------------------------------------------------
 # Generate Final Response
@@ -251,6 +276,7 @@ if __name__ == "__main__":
         "response": "",
         "intent": "",
         "tool_result": {},
+        "tool_used": "",
         "context": []
     })
 
@@ -259,4 +285,5 @@ if __name__ == "__main__":
     print("=" * 60)
 
     print("\nIntent:", result["intent"])
+    print("Tool used:", result["tool_used"])
     print("\nResponse:", result["response"])

@@ -1,0 +1,26 @@
+[
+    {
+        "question": "Who is the CEO of NovaCart?",
+        "expected_behavior": "refuse_unknown"
+    },
+    {
+        "question": "Do you sell cars?",
+        "expected_behavior": "refuse_unknown"
+    },
+    {
+        "question": "What is NovaCart's favorite color?",
+        "expected_behavior": "refuse_unknown"
+    },
+    {
+        "question": "What is NovaCart's office address?",
+        "expected_behavior": "refuse_unknown"
+    },
+    {
+        "question": "What is the salary of NovaCart employees?",
+        "expected_behavior": "refuse_unknown"
+    },
+    {
+        "question": "When was NovaCart founded?",
+        "expected_behavior": "refuse_unknown"
+    }
+]
