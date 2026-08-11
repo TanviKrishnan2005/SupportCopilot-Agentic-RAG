@@ -3,8 +3,8 @@
 AI-powered customer support agent for NovaCart.
 
 SupportCopilot combines RAG, hybrid retrieval, LangGraph-based
-agent orchestration, and database-backed support tools to answer
-customer questions and perform support actions.
+agent orchestration, database-backed support tools, and a FastAPI
+backend to answer customer questions and perform support actions.
 
 ---
 
@@ -21,33 +21,44 @@ customer questions and perform support actions.
 - Hallucination prevention
 - Edge-case handling
 - Automated evaluation framework
+- FastAPI REST API
+- Swagger/OpenAPI documentation
+- CORS support
+- Request validation and error handling
 
 ---
 
 ## Architecture
 
-```text
-                         User Question
-                              |
-                              v
-                       +--------------+
-                       |    Router    |
-                       +--------------+
-                              |
-              +---------------+---------------+
-              |               |               |
-              v               v               v
-             RAG          Order Tools      Fallback
-              |               |
-              v               v
-       Hybrid Retrieval   SQLite Database
-              |               |
-              v               v
-         Policy Docs      Order / Ticket
+                         User / Frontend
+                               |
+                               v
+                         FastAPI API
+                               |
+                           POST /chat
+                               |
+                               v
+                        LangGraph Agent
+                               |
+              +----------------+----------------+
+              |                |                |
+              v                v                v
+             RAG          Order Tools        Fallback
+              |                |
+              v                v
+       Hybrid Retrieval    SQLite Database
+              |                |
+              v                v
+        Policy Documents   Orders / Tickets
               |
               v
         Final Response
-````
+              |
+              v
+          FastAPI API
+              |
+              v
+        User / Frontend
 
 ---
 
@@ -58,19 +69,19 @@ support intents.
 
 ### Supported intents
 
-* `rag`
-* `order_status`
-* `refund`
-* `ticket`
-* `fallback`
+- `rag`
+- `order_status`
+- `refund`
+- `ticket`
+- `fallback`
 
 ### Tool routing
 
-| Intent         | Tool                       |
-| -------------- | -------------------------- |
-| `order_status` | `get_order_status`         |
-| `refund`       | `check_refund_eligibility` |
-| `ticket`       | `create_ticket`            |
+| Intent | Tool |
+|---|---|
+| `order_status` | `get_order_status` |
+| `refund` | `check_refund_eligibility` |
+| `ticket` | `create_ticket` |
 
 ---
 
@@ -81,11 +92,11 @@ generating an answer.
 
 The retrieval pipeline uses:
 
-* Semantic search
-* BM25 / keyword search
-* Hybrid retrieval
-* Top-k relevant chunks
-* LLM-based answer generation
+- Semantic search
+- BM25 / keyword search
+- Hybrid retrieval
+- Top-k relevant chunks
+- LLM-based answer generation
 
 The model is instructed to answer using only the retrieved
 NovaCart policy information.
@@ -102,102 +113,156 @@ order information.
 
 ### Order Status
 
-Users can ask questions such as:
+Example:
 
-```text
-Where is my order ORD1005?
-```
+    Where is my order ORD1005?
 
-The system retrieves:
-
-* Customer
-* Product
-* Order date
-* Delivery date
-* Order status
-* Payment status
-* Amount
+The system retrieves the relevant order information and returns
+the current order status.
 
 ### Refund Eligibility
 
 The system checks:
 
-* Whether the order exists
-* Whether the order has been delivered
-* Whether it is within the 30-day return window
+- Whether the order exists
+- Whether the order has been delivered
+- Whether it is within the applicable return window
 
 ### Support Tickets
 
 Customers can report issues such as damaged packages.
 
-The system creates a support ticket containing:
-
-* Ticket ID
-* Order ID
-* Issue
-* Status
-* Creation timestamp
+The system creates a support ticket containing the relevant
+order and issue information.
 
 ---
 
-## Example
+## FastAPI Backend
+
+SupportCopilot exposes the agent through a REST API using FastAPI.
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | API health check |
+| POST | `/chat` | Send a customer support question |
+
+### Request
+
+```json
+{
+  "question": "Where is my order ORD1005?"
+}
+````
+
+### Response
+
+```json
+{
+  "success": true,
+  "question": "Where is my order ORD1005?",
+  "intent": "order_status",
+  "response": "Your order ORD1005 has been shipped..."
+}
+```
+
+### Validation
+
+The API validates incoming requests using Pydantic.
+
+An empty question is rejected with HTTP `422`.
+
+Whitespace-only questions are handled by the agent as a fallback
+request.
+
+### Error Handling
+
+Unexpected agent errors are caught by the API and returned as an
+HTTP `500` response without exposing internal implementation details.
+
+### CORS
+
+CORS middleware is enabled so that a separate frontend application
+can communicate with the backend API.
+
+---
+
+## Swagger / OpenAPI
+
+FastAPI automatically provides interactive API documentation.
+
+After starting the server, open:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+The OpenAPI specification is available at:
+
+```
+http://127.0.0.1:8000/openapi.json
+```
+
+The API exposes schemas for:
+
+* `ChatRequest`
+* `ChatResponse`
+* Validation errors
+
+---
+
+## Example Requests
 
 ### Policy Question
 
-```text
-User:
+```
 How long does delivery take?
 ```
 
-```text
-SupportCopilot:
-Metro Cities: 2–4 business days
-Tier-2 Cities: 3–5 business days
-Remote Areas: 5–7 business days
-```
+The agent retrieves the relevant shipping policy and returns the
+estimated delivery timelines.
 
 ---
 
 ### Order Question
 
-```text
-User:
+```
 Where is my order ORD1005?
 ```
 
-```text
-SupportCopilot:
-Your order ORD1005 has been shipped.
-```
+The request is routed to the order status tool.
 
 ---
 
 ### Refund Question
 
-```text
-User:
+```
 Can I get a refund for ORD1005?
 ```
 
-```text
-SupportCopilot:
-The order is not currently eligible for a refund because it
-has not been delivered yet.
-```
+The request is routed to the refund eligibility tool.
 
 ---
 
 ### Support Ticket
 
-```text
-User:
+```
 My package ORD1005 arrived damaged, create a complaint.
 ```
 
-```text
-SupportCopilot:
-A support ticket has been created.
+The request is routed to the ticket creation tool.
+
+---
+
+### Unknown Order
+
 ```
+Where is my order ORD9999?
+```
+
+The system checks the database and reports that the order could not
+be found.
 
 ---
 
@@ -242,8 +307,7 @@ policy-based questions.
 
 #### Answer Quality
 
-Checks whether generated responses contain the expected information
-without requiring exact wording.
+Checks whether generated responses contain the expected information.
 
 #### Hallucination Safety
 
@@ -270,46 +334,51 @@ Tests include:
 
 ## Project Structure
 
-```text
+```
 SupportCopilot/
-│
-├── data/
-│   ├── database/
-│   │   └── orders.db
-│   ├── documents/
-│   ├── chroma/
-│   └── bm25/
-│
-├── evaluation/
-│   ├── test_cases.json
-│   ├── hallucination_tests.json
-│   ├── edge_case_tests.json
-│   ├── evaluate_agent.py
-│   ├── evaluate_hallucination.py
-│   ├── evaluate_edge_cases.py
-│   └── evaluation_report.md
-│
-├── src/
-│   ├── agents/
-│   │   └── graph.py
-│   │
-│   ├── rag/
-│   │   ├── rag_pipeline.py
-│   │   └── hybrid_retriever.py
-│   │
-│   └── tools/
-│       └── order_tools.py
-│
-├── .gitignore
-├── README.md
-└── requirements.txt
+|
++-- data/
+|   +-- database/
+|   |   +-- orders.db
+|   +-- documents/
+|   +-- chroma/
+|   +-- bm25/
+|
++-- evaluation/
+|   +-- test_cases.json
+|   +-- hallucination_tests.json
+|   +-- edge_case_tests.json
+|   +-- evaluate_agent.py
+|   +-- evaluate_hallucination.py
+|   +-- evaluate_edge_cases.py
+|   +-- evaluation_report.md
+|
++-- src/
+|   +-- agents/
+|   |   +-- graph.py
+|   |
+|   +-- rag/
+|   |   +-- rag_pipeline.py
+|   |   +-- hybrid_retriever.py
+|   |
+|   +-- tools/
+|   |   +-- order_tools.py
+|   |
+|   +-- api/
+|       +-- __init__.py
+|       +-- main.py
+|
++-- .gitignore
++-- .env
++-- requirements.txt
++-- README.md
 ```
 
 ---
 
-## Running the Project
+## Installation
 
-Create and activate a virtual environment:
+Create a virtual environment:
 
 ```bash
 python -m venv .venv
@@ -323,20 +392,46 @@ Activate it on Windows:
 
 Install dependencies:
 
-```bash
+```powershell
 pip install -r requirements.txt
 ```
 
-Create a `.env` file containing:
+Create a `.env` file containing the required API key:
 
 ```text
 GROQ_API_KEY=your_api_key
 ```
 
-Run the agent:
+The `.env` file is excluded from Git using `.gitignore`.
 
-```bash
+---
+
+## Running the Agent Directly
+
+```powershell
 python -m src.agents.graph
+```
+
+---
+
+## Running the FastAPI Backend
+
+Start the development server:
+
+```powershell
+python -m uvicorn src.api.main:app --reload
+```
+
+The API will be available at:
+
+```
+http://127.0.0.1:8000
+```
+
+Swagger documentation:
+
+```
+http://127.0.0.1:8000/docs
 ```
 
 ---
@@ -345,19 +440,19 @@ python -m src.agents.graph
 
 ### Main evaluation
 
-```bash
+```powershell
 python -m evaluation.evaluate_agent
 ```
 
 ### Hallucination evaluation
 
-```bash
+```powershell
 python -m evaluation.evaluate_hallucination
 ```
 
 ### Edge-case evaluation
 
-```bash
+```powershell
 python -m evaluation.evaluate_edge_cases
 ```
 
@@ -366,6 +461,9 @@ python -m evaluation.evaluate_edge_cases
 ## Technologies
 
 * Python
+* FastAPI
+* Uvicorn
+* Pydantic
 * LangGraph
 * LangChain
 * Groq / Llama
@@ -392,6 +490,11 @@ This project demonstrates practical implementation of:
 * Hallucination prevention
 * Automated agent evaluation
 * Edge-case testing
+* REST API development
+* FastAPI request validation
+* API documentation with OpenAPI
+* CORS configuration
+* Backend integration with an AI agent
 
 ---
 
@@ -399,16 +502,13 @@ This project demonstrates practical implementation of:
 
 Potential future improvements include:
 
-* LLM-based intent classification
-* More sophisticated tool selection
+* Frontend interface
 * Conversation memory
 * Streaming responses
+* Authentication
 * Better evaluation metrics
 * Larger evaluation datasets
-* Authentication
-* Customer-facing web interface
+* Improved tool selection
+* Production deployment
 * Observability and tracing
-
-````
-
 
