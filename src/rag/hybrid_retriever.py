@@ -26,17 +26,27 @@ TOP_K = 3
 
 
 # --------------------------------------------------
-# Load embedding model
+# Lazy Embedding Model
 # --------------------------------------------------
 
-print("Loading embedding model...")
+embedding_model = None
 
-embedding_model = SentenceTransformer(MODEL_NAME)
+
+def get_embedding_model():
+    global embedding_model
+
+    if embedding_model is None:
+        print("Loading embedding model...")
+        embedding_model = SentenceTransformer(MODEL_NAME)
+
+    return embedding_model
 
 
 # --------------------------------------------------
 # Connect to ChromaDB
 # --------------------------------------------------
+
+print("Connecting to ChromaDB...")
 
 chroma_client = chromadb.PersistentClient(
     path=str(CHROMA_PATH)
@@ -51,6 +61,8 @@ collection = chroma_client.get_collection(
 # Load BM25 index
 # --------------------------------------------------
 
+print("Loading BM25 index...")
+
 with open(BM25_PATH, "rb") as file:
     bm25_data = pickle.load(file)
 
@@ -64,7 +76,9 @@ bm25_chunks = bm25_data["chunks"]
 
 def semantic_search(query, top_k=TOP_K):
 
-    query_embedding = embedding_model.encode(
+    model = get_embedding_model()
+
+    query_embedding = model.encode(
         [query]
     )[0]
 
@@ -147,7 +161,6 @@ def hybrid_search(query, top_k=TOP_K):
 
             combined[result["chunk_id"]] = result
 
-    # Return combined results
     return list(combined.values())[:top_k]
 
 
@@ -170,6 +183,8 @@ if __name__ == "__main__":
         print(f"Source: {result['source']}")
         print(f"Method: {result['method']}")
         print(f"Chunk ID: {result['chunk_id']}")
+
         print("\nContent:")
         print(result["content"])
+
         print("-" * 60)
