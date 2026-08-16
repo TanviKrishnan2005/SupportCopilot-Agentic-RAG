@@ -2,7 +2,7 @@ import pickle
 from pathlib import Path
 
 import chromadb
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 
 # --------------------------------------------------
@@ -19,7 +19,7 @@ BM25_PATH = PROJECT_ROOT / "data" / "bm25" / "index.pkl"
 # Configuration
 # --------------------------------------------------
 
-MODEL_NAME = "all-MiniLM-L6-v2"
+MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 COLLECTION_NAME = "novacart_policies"
 
 TOP_K = 3
@@ -28,7 +28,6 @@ TOP_K = 3
 # --------------------------------------------------
 # Lazy Embedding Model
 # --------------------------------------------------
-
 embedding_model = None
 
 
@@ -37,7 +36,9 @@ def get_embedding_model():
 
     if embedding_model is None:
         print("Loading embedding model...")
-        embedding_model = SentenceTransformer(MODEL_NAME)
+        embedding_model = TextEmbedding(
+            model_name=MODEL_NAME
+        )
 
     return embedding_model
 
@@ -78,9 +79,9 @@ def semantic_search(query, top_k=TOP_K):
 
     model = get_embedding_model()
 
-    query_embedding = model.encode(
-        [query]
-    )[0]
+    query_embedding = list(
+    model.embed([query])
+)[0]
 
     results = collection.query(
         query_embeddings=[query_embedding.tolist()],

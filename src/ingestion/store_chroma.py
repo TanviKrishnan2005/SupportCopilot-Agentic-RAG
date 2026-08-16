@@ -1,5 +1,5 @@
 import chromadb
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 from chunk_documents import chunk_text
 from load_documents import load_documents
@@ -9,7 +9,7 @@ from load_documents import load_documents
 # Configuration
 # --------------------------------------------------
 
-MODEL_NAME = "all-MiniLM-L6-v2"
+MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 CHROMA_PATH = "data/chroma"
 
@@ -22,7 +22,9 @@ COLLECTION_NAME = "novacart_policies"
 
 print("Loading embedding model...")
 
-model = SentenceTransformer(MODEL_NAME)
+embedding_model = TextEmbedding(
+    model_name=MODEL_NAME
+)
 
 
 # --------------------------------------------------
@@ -54,9 +56,8 @@ texts = [chunk["content"] for chunk in all_chunks]
 
 print(f"Generating embeddings for {len(texts)} chunks...")
 
-embeddings = model.encode(
-    texts,
-    show_progress_bar=True
+embeddings = list(
+    embedding_model.embed(texts)
 )
 
 
@@ -87,7 +88,7 @@ collection = client.get_or_create_collection(
 collection.add(
     ids=[chunk["chunk_id"] for chunk in all_chunks],
     documents=texts,
-    embeddings=embeddings.tolist(),
+    embeddings=[embedding.tolist() for embedding in embeddings],
     metadatas=[
         {
             "source": chunk["source"],
