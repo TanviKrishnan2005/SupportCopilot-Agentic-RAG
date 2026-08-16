@@ -1,514 +1,266 @@
-# SupportCopilot
+# SupportCopilot 🤖
 
-AI-powered customer support agent for NovaCart.
+AI-powered customer support agent for **NovaCart** that can answer policy questions, retrieve order information, check refund eligibility, and create support tickets.
 
-SupportCopilot combines RAG, hybrid retrieval, LangGraph-based
-agent orchestration, database-backed support tools, and a FastAPI
-backend to answer customer questions and perform support actions.
+Built with **LangGraph, Hybrid RAG, FastAPI, SQLite, React, and LLM-based tool calling**.
+
+## 🚀 Live Demo
+
+**Frontend:** https://support-copilot-agentic-rag.vercel.app/
+
+**Backend:** https://supportcopilot-agentic-rag.onrender.com/
+
+**API Docs:** https://supportcopilot-agentic-rag.onrender.com/docs
 
 ---
 
-## Features
+## ✨ Features
 
-- Policy-based question answering using RAG
-- Semantic + keyword/hybrid retrieval
-- LangGraph agent workflow
+- Agentic customer-support workflow using LangGraph
 - Intent-based request routing
+- Hybrid RAG using semantic search + BM25
+- Policy question answering
 - Order status lookup
 - Refund eligibility checking
 - Support ticket creation
-- Unknown-information handling
-- Hallucination prevention
-- Edge-case handling
-- Automated evaluation framework
+- Hallucination-safe fallback handling
+- Automated evaluation and edge-case testing
 - FastAPI REST API
-- Swagger/OpenAPI documentation
-- CORS support
-- Request validation and error handling
+- React + Vite frontend
+- Production deployment on Render + Vercel
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
-                         User / Frontend
-                               |
-                               v
-                         FastAPI API
-                               |
-                           POST /chat
-                               |
-                               v
-                        LangGraph Agent
-                               |
-              +----------------+----------------+
-              |                |                |
-              v                v                v
-             RAG          Order Tools        Fallback
-              |                |
-              v                v
-       Hybrid Retrieval    SQLite Database
-              |                |
-              v                v
-        Policy Documents   Orders / Tickets
-              |
-              v
-        Final Response
-              |
-              v
-          FastAPI API
-              |
-              v
-        User / Frontend
-
----
-
-## Agent Workflow
-
-The LangGraph agent classifies incoming requests into different
-support intents.
-
-### Supported intents
-
-- `rag`
-- `order_status`
-- `refund`
-- `ticket`
-- `fallback`
-
-### Tool routing
-
-| Intent | Tool |
-|---|---|
-| `order_status` | `get_order_status` |
-| `refund` | `check_refund_eligibility` |
-| `ticket` | `create_ticket` |
+```text
+                    React Frontend
+                       (Vercel)
+                           |
+                           v
+                    FastAPI Backend
+                       (Render)
+                           |
+                           v
+                    LangGraph Agent
+                           |
+          +----------------+----------------+
+          |                |                |
+          v                v                v
+         RAG          Order Tools       Fallback
+          |                |
+          v                v
+    Hybrid Retrieval    SQLite DB
+       /       \
+      v         v
+ Semantic      BM25
+  Search      Search
+      \         /
+       \       /
+        v     v
+      Context
+         |
+         v
+    LLM Response
+````
 
 ---
 
-## RAG Pipeline
+## 🧠 Agent Workflow
 
-The RAG system retrieves relevant NovaCart policy information before
-generating an answer.
+The agent classifies each request into one of five intents:
 
-The retrieval pipeline uses:
+| Intent         | Action                              |
+| -------------- | ----------------------------------- |
+| `rag`          | Retrieve relevant NovaCart policies |
+| `order_status` | Query order database                |
+| `refund`       | Check refund eligibility            |
+| `ticket`       | Create support ticket               |
+| `fallback`     | Safely handle unknown requests      |
 
-- Semantic search
-- BM25 / keyword search
-- Hybrid retrieval
-- Top-k relevant chunks
-- LLM-based answer generation
+### Hybrid RAG
 
-The model is instructed to answer using only the retrieved
-NovaCart policy information.
+The RAG pipeline combines:
 
-If the information is unavailable, the assistant explicitly states
-that it does not have enough information instead of inventing an answer.
+* Semantic vector search using **FastEmbed**
+* BM25 keyword search
+* ChromaDB vector storage
+* Top-k context retrieval
+* LLM-based answer generation
+
+The model is instructed to answer only from retrieved NovaCart information and avoid fabricating unsupported answers.
 
 ---
 
-## Order Support Tools
-
-SupportCopilot connects to a SQLite database containing NovaCart
-order information.
+## 🛠️ Support Tools
 
 ### Order Status
 
-Example:
-
-    Where is my order ORD1005?
-
-The system retrieves the relevant order information and returns
-the current order status.
-
-### Refund Eligibility
-
-The system checks:
-
-- Whether the order exists
-- Whether the order has been delivered
-- Whether it is within the applicable return window
-
-### Support Tickets
-
-Customers can report issues such as damaged packages.
-
-The system creates a support ticket containing the relevant
-order and issue information.
-
----
-
-## FastAPI Backend
-
-SupportCopilot exposes the agent through a REST API using FastAPI.
-
-### API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/` | API health check |
-| POST | `/chat` | Send a customer support question |
-
-### Request
-
-```json
-{
-  "question": "Where is my order ORD1005?"
-}
-````
-
-### Response
-
-```json
-{
-  "success": true,
-  "question": "Where is my order ORD1005?",
-  "intent": "order_status",
-  "response": "Your order ORD1005 has been shipped..."
-}
-```
-
-### Validation
-
-The API validates incoming requests using Pydantic.
-
-An empty question is rejected with HTTP `422`.
-
-Whitespace-only questions are handled by the agent as a fallback
-request.
-
-### Error Handling
-
-Unexpected agent errors are caught by the API and returned as an
-HTTP `500` response without exposing internal implementation details.
-
-### CORS
-
-CORS middleware is enabled so that a separate frontend application
-can communicate with the backend API.
-
----
-
-## Swagger / OpenAPI
-
-FastAPI automatically provides interactive API documentation.
-
-After starting the server, open:
-
-```
-http://127.0.0.1:8000/docs
-```
-
-The OpenAPI specification is available at:
-
-```
-http://127.0.0.1:8000/openapi.json
-```
-
-The API exposes schemas for:
-
-* `ChatRequest`
-* `ChatResponse`
-* Validation errors
-
----
-
-## Example Requests
-
-### Policy Question
-
-```
-How long does delivery take?
-```
-
-The agent retrieves the relevant shipping policy and returns the
-estimated delivery timelines.
-
----
-
-### Order Question
-
-```
+```text
 Where is my order ORD1005?
 ```
 
-The request is routed to the order status tool.
+Retrieves order information from SQLite.
 
----
+### Refund Eligibility
 
-### Refund Question
-
-```
+```text
 Can I get a refund for ORD1005?
 ```
 
-The request is routed to the refund eligibility tool.
+Checks order existence, delivery status, and refund eligibility.
 
----
+### Support Tickets
 
-### Support Ticket
-
-```
+```text
 My package ORD1005 arrived damaged, create a complaint.
 ```
 
-The request is routed to the ticket creation tool.
+Creates a support ticket for the customer issue.
 
 ---
 
-### Unknown Order
+## 📊 Evaluation
 
-```
-Where is my order ORD9999?
-```
+| Metric                 |    Result |
+| ---------------------- | --------: |
+| Intent Routing         |      100% |
+| Tool Selection         |      100% |
+| RAG Retrieval          |      100% |
+| Answer Quality         |     87.5% |
+| Hallucination Safety   |      100% |
+| Edge-Case Handling     |       90% |
+| **Overall Evaluation** | **87.5%** |
 
-The system checks the database and reports that the order could not
-be found.
-
----
-
-## Evaluation
-
-SupportCopilot includes an automated evaluation framework covering
-multiple aspects of agent performance.
-
-### Evaluation Results
-
-| Metric               | Result |
-| -------------------- | -----: |
-| Intent Routing       |   100% |
-| Tool Selection       |   100% |
-| RAG Retrieval        |   100% |
-| Answer Quality       |  87.5% |
-| Hallucination Safety |   100% |
-| Edge-Case Handling   |    90% |
-| Overall Evaluation   |  87.5% |
-
-### Evaluation Categories
-
-#### Intent Routing
-
-Tests whether questions are correctly classified into:
-
-* RAG
-* Order status
-* Refund
-* Ticket
-* Fallback
-
-#### Tool Selection
-
-Tests whether the correct backend tool is selected for each
-action-oriented request.
-
-#### RAG Retrieval
-
-Tests whether the relevant policy document is retrieved for
-policy-based questions.
-
-#### Answer Quality
-
-Checks whether generated responses contain the expected information.
-
-#### Hallucination Safety
-
-Tests questions for which the knowledge base does not contain an
-answer.
-
-The assistant is expected to acknowledge insufficient information
-rather than fabricate an answer.
-
-#### Edge Cases
-
-Tests include:
-
-* Empty questions
-* Whitespace-only input
-* Missing order IDs
-* Invalid order IDs
-* Unknown orders
-* Unknown refund requests
-* Unknown ticket requests
-* Random input
+Tests cover intent routing, tool selection, retrieval quality, hallucination safety, invalid orders, missing IDs, empty input, and other edge cases.
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
-```
+```text
 SupportCopilot/
-|
-+-- data/
-|   +-- database/
-|   |   +-- orders.db
-|   +-- documents/
-|   +-- chroma/
-|   +-- bm25/
-|
-+-- evaluation/
-|   +-- test_cases.json
-|   +-- hallucination_tests.json
-|   +-- edge_case_tests.json
-|   +-- evaluate_agent.py
-|   +-- evaluate_hallucination.py
-|   +-- evaluate_edge_cases.py
-|   +-- evaluation_report.md
-|
-+-- src/
-|   +-- agents/
-|   |   +-- graph.py
-|   |
-|   +-- rag/
-|   |   +-- rag_pipeline.py
-|   |   +-- hybrid_retriever.py
-|   |
-|   +-- tools/
-|   |   +-- order_tools.py
-|   |
-|   +-- api/
-|       +-- __init__.py
-|       +-- main.py
-|
-+-- .gitignore
-+-- .env
-+-- requirements.txt
-+-- README.md
+│
+├── data/
+│   ├── database/
+│   │   └── orders.db
+│   └── policies/
+│       ├── faq.md
+│       ├── payments.md
+│       ├── returns.md
+│       ├── shipping.md
+│       └── warranty.md
+│
+├── evaluation/
+│   ├── test_cases.json
+│   ├── hallucination_tests.json
+│   ├── edge_case_tests.json
+│   └── evaluation scripts
+│
+├── frontend/
+│   └── src/
+│       ├── components/
+│       ├── utils/
+│       ├── App.jsx
+│       └── index.css
+│
+├── src/
+│   ├── agents/
+│   ├── ingestion/
+│   ├── rag/
+│   ├── tools/
+│   └── api/
+│
+├── .gitignore
+├── .python-version
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## Installation
+## ⚙️ Local Setup
 
-Create a virtual environment:
+### Backend
 
 ```bash
+git clone https://github.com/TanviKrishnan2005/SupportCopilot-Agentic-RAG.git
+cd SupportCopilot-Agentic-RAG
+
 python -m venv .venv
-```
-
-Activate it on Windows:
-
-```powershell
 .venv\Scripts\activate
-```
 
-Install dependencies:
-
-```powershell
 pip install -r requirements.txt
 ```
 
-Create a `.env` file containing the required API key:
+Create `.env`:
 
 ```text
 GROQ_API_KEY=your_api_key
 ```
 
-The `.env` file is excluded from Git using `.gitignore`.
-
----
-
-## Running the Agent Directly
+Build the RAG indexes:
 
 ```powershell
-python -m src.agents.graph
+python src/ingestion/store_chroma.py
+python src/ingestion/build_bm25.py
 ```
 
----
-
-## Running the FastAPI Backend
-
-Start the development server:
+Start the API:
 
 ```powershell
 python -m uvicorn src.api.main:app --reload
 ```
 
-The API will be available at:
+Swagger:
 
-```
-http://127.0.0.1:8000
-```
-
-Swagger documentation:
-
-```
+```text
 http://127.0.0.1:8000/docs
 ```
 
----
-
-## Running Evaluations
-
-### Main evaluation
+### Frontend
 
 ```powershell
-python -m evaluation.evaluate_agent
+cd frontend
+npm install
+npm run dev
 ```
 
-### Hallucination evaluation
+Set:
 
-```powershell
-python -m evaluation.evaluate_hallucination
-```
-
-### Edge-case evaluation
-
-```powershell
-python -m evaluation.evaluate_edge_cases
+```text
+VITE_API_URL=http://127.0.0.1:8000
 ```
 
 ---
 
-## Technologies
+## ☁️ Deployment
 
-* Python
-* FastAPI
-* Uvicorn
-* Pydantic
-* LangGraph
-* LangChain
-* Groq / Llama
-* RAG
-* BM25
-* Vector Search
-* SQLite
-* ChromaDB
-* Sentence Transformers
+**Frontend:** Vercel
+
+**Backend:** Render
+
+The backend builds the ChromaDB and BM25 indexes during deployment and runs as a FastAPI service.
+
+The production frontend communicates with the deployed API through `VITE_API_URL`.
 
 ---
 
-## Key Learning Outcomes
+## 🧰 Tech Stack
 
-This project demonstrates practical implementation of:
+**AI / Agent:** Python, LangGraph, LangChain, Groq/Llama
 
-* Retrieval-Augmented Generation
-* Hybrid information retrieval
-* Agentic workflows
-* Intent routing
-* Tool calling
-* Database integration
-* LLM response generation
-* Hallucination prevention
-* Automated agent evaluation
-* Edge-case testing
-* REST API development
-* FastAPI request validation
-* API documentation with OpenAPI
-* CORS configuration
-* Backend integration with an AI agent
+**RAG:** FastEmbed, ONNX Runtime, ChromaDB, BM25
+
+**Backend:** FastAPI, Uvicorn, Pydantic, SQLite
+
+**Frontend:** React, Vite, JavaScript
+
+**Deployment:** Render, Vercel, GitHub
 
 ---
 
-## Future Improvements
+## 🔗 Repository
 
-Potential future improvements include:
-
-* Frontend interface
-* Conversation memory
-* Streaming responses
-* Authentication
-* Better evaluation metrics
-* Larger evaluation datasets
-* Improved tool selection
-* Production deployment
-* Observability and tracing
+[https://github.com/TanviKrishnan2005/SupportCopilot-Agentic-RAG](https://github.com/TanviKrishnan2005/SupportCopilot-Agentic-RAG)
 
